@@ -349,46 +349,6 @@ shinyServer(function(input, output, session) {
         icu.avail = 200, 
         vent.avail = 100
     )
-    
-    # modal pop-up to update parameters
-    observeEvent(input$parameters_modal,{
-        showModal(modalDialog(
-            fluidPage(
-                sliderInput('illness.length', 'Average Length of Illness (Assumed Same as Time of Infectiousness)', min = 0, max = 20, step = 1, 
-                            value = params$illness.length, width = '100%'),
-                
-                sliderInput('hosp.rate', 'Percent Hospitalized Among Infections', min = 0, max = 1, step = 0.01, 
-                            value = params$hosp.rate, width = '100%'),
-                
-                sliderInput('icu.rate', 'Percent ICU Admitted Among Hospitalized', min = 0, max = 1, step = 0.01, 
-                            value = params$icu.rate, width = '100%'),
-                
-                sliderInput('vent.rate', 'Percent Ventilated Among ICU Admissions', min = 0, max = 1, step = 0.01, 
-                            value = params$vent.rate, width = '100%'),
-                
-                sliderInput('hosp.after.inf', 'Infection to hospitalization (days)', min = 0, max = 30, step = 1, 
-                            value = params$hosp.delay.time, width = '100%'),
-                
-                sliderInput('icu.after.hosp', 'Hospitalization to ICU Admission (days)', min = 0, max = 30, step = 1, 
-                            value = params$icu.delay.time, width = '100%'),
-                
-                sliderInput('vent.after.icu', 'ICU Admission to Ventilation (days)', min = 0, max = 30, step = 1, 
-                            value = params$vent.delay.time, width = '100%'),
-                
-                sliderInput('hosp.los', 'Hospital Length of Stay (days)', min = 5, max = 15, step = 1, 
-                            value = params$hosp.los, width = '100%'),
-                
-                sliderInput('icu.los', 'ICU Length of Stay (days)', min = 5, max = 15, step = 1,
-                            value = params$icu.los, width = '100%'),
-                
-                sliderInput('vent.los', 'Ventilation Course (days)', min = 5, max = 15, step = 1, 
-                            value = params$vent.los, width = '100%')),
-            footer = tagList(
-                actionButton("save", "Save and Close")
-            )
-        )
-        )
-    })
 
     observeEvent(input$save, {
         params$illness.length = input$illness.length

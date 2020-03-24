@@ -72,10 +72,27 @@ shinyUI(
                    
                    materialSwitch(inputId = "usedouble", 
                                   label = 'Use doubling time instead of Re', 
-                                  status = 'primary'),
+                                  status = 'primary'), 
                    
-                   actionButton(inputId = 'parameters_modal',
-                                label = 'Customize Other Parameters'), 
+                   HTML('<br><h4>If 100 people are in the non-ICU hospital on a given day, how many - the next day -
+                        would:</h4>'),
+                   
+                   numericInput('p.g_icu', 'Go to ICU?', min = 0, max = 100, value = 10),
+                   numericInput('p.g_d', 'Be discharged?', min = 0, max = 100, value = 5),
+
+                   HTML('<br><h4>If 100 people are in the ICU unit on a given day, how many - the next day -
+                        would:</h4>'),
+                   
+                   numericInput('p.icu_g', 'Move to the non-ICU hospital?', min = 0, max = 100, value = 15),
+                   numericInput('p.icu_v', 'Go on a ventilator?', min = 0, max = 100, value = 50),
+
+
+                   HTML('<br><h4>If 100 people are on a ventilator on a given day, how many - the next day -
+                        would:</h4>'),
+                   
+                   numericInput('p.v_icu', 'Move to the non-ventilated ICU state?', min = 0, max = 100, value = 10),
+                   numericInput('p.v_m', 'Die?', min = 0, max = 100, value = 7),
+                   
                    
                    HTML('<br><br><b>Notes</b>: This app is a modified version of the <a href="http://penn-chime.phl.io/">Penn Chime app</a>.
                  This is a beta version - the projections may or may not be accurate.
