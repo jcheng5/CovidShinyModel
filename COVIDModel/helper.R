@@ -2,8 +2,9 @@ library(ggplot2)
 library(shinyWidgets)
 library(data.table)
 
-# Get Interpretatable Vals
 
+# solves systems to get out the interpretable 'parameters'
+# right now only gets mean hitting times
 getInterpretableVals <- function(p.g_g, 
                                  p.g_icu, 
                                  p.g_d, 
@@ -24,7 +25,6 @@ getInterpretableVals <- function(p.g_g,
   colnames(sol) <- c('m.g', 'm.icu', 'm.v')
   
   return(sol[1,])
-  
   
 }
 
