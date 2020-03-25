@@ -629,9 +629,9 @@ shinyServer(function(input, output, session) {
         df_temp <- df_temp[df_temp$days.shift >= 0,]
         
         if (!is.null(input$hosp_cap)){
-            df_temp$hosp <- input$hosp_cap - df_temp$hosp
-            df_temp$icu <- input$icu_cap - df_temp$icu
-            df_temp$vent <- input$vent_cap - df_temp$vent
+            df_temp$hosp.tot <- input$hosp_cap - df_temp$hosp.tot
+            df_temp$icu.tot <- input$icu_cap - df_temp$icu.tot
+            df_temp$vent.tot <- input$vent_cap - df_temp$vent.tot
         }
         
         df_temp <- df_temp[,c('date', 'days.shift', 'hosp.tot', 'icu.tot', 'vent.tot')]
