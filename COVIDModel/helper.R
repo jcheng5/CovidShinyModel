@@ -28,29 +28,6 @@ getInterpretableVals <- function(p.g_g,
   
 }
 
-# Split gamma for I -> H and I -> D
-findGammas <- function(per.hosp, 
-                       hosp.delay.time, 
-                       illness.length){
-  
-  per.nonhosp <- 1 - per.hosp
-  
-  avg.time.i <- (per.hosp * hosp.delay.time) + (per.nonhosp * illness.length)
-  
-  gamma.i_d <- per.nonhosp * (1 / avg.time.i)
-  gamma.i_h <- per.hosp * (1 / avg.time.i)
-  
-  gamma.tot <- gamma.i_d + gamma.i_h
-  
-  gamma.list <- list(
-    'gamma.d' = gamma.i_d,
-    'gamma.h' = gamma.i_h, 
-    'gamma.tot' = gamma.tot
-  )
-  
-  return(gamma.list)
-}
-
 # Transition Matrix
 createTransition <- function(p.g_g, 
                              p.g_icu, 
@@ -93,32 +70,48 @@ runMarkov <- function(new.hosp.vec, trans.mat){
 }
 
 # Runs SIR, combines with Markov
-SIR <- function(S0, I0, R0, beta.vector, gamma_d, gamma_h, trans.mat, num.days) {
+SIR <- function(S0, I0, R0, beta.vector, gamma_r, gamma_h, 
+                hosp.rate, trans.mat, num.days) {
+  
+  # non-hospitalized rate
+  non.hosp.rate <- 1 - hosp.rate
   
   # initialize S, I, R 
-  S <- I <- R <- hosp <- rep(NA_real_, num.days)
+  S <- IH <- IR <- R <- hosp <- rep(NA_real_, num.days)
   S[1] <- S0
-  I[1] <- I0
+  IR[1] <- I0 * non.hosp.rate
+  IH[1] <- I0 * hosp.rate
   R[1] <- R0
-  N = S[1] + I[1] + R[1]
   hosp[1] <- 0
   
-  gamma <- gamma_d + gamma_h
-  
+  N = S[1] + IR[1] + IH[1] + R[1]
+
   # run SIR model 
   for (tt in 1:(num.days - 1)) {
     beta <- beta.vector[tt]
-    S[tt + 1] <-  -beta * S[tt] * I[tt] / N                 + S[tt]
-    I[tt + 1] <-   beta * S[tt] * I[tt] / N - gamma * I[tt]  + I[tt]
-    R[tt + 1] <-                          gamma_d * I[tt]  + R[tt]
-    hosp[tt + 1] <- gamma_h * I[tt]
+    dS <- (-beta * S[tt] * (IR[tt] + IH[tt]))/N
+    dR <- gamma_r * IR[tt]
+    dHosp <- gamma_h * IH[tt]
+    dIR <- -(dS * non.hosp.rate) - dR
+    dIH <- -(dS * hosp.rate) - dHosp
+
+    S[tt + 1] <-  S[tt] + dS
+    IR[tt + 1] <- IR[tt] + dIR
+    IH[tt + 1] <- IH[tt] + dIH
+    R[tt + 1] <- R[tt] + dR
+    hosp[tt + 1] <- hosp[tt] + dHosp
   }
   
-  df.return <- data.frame(days = 1:num.days, S, I, R, hosp)
+  I <- IR + IH
+  
+  df.return <- data.frame(days = 1:num.days, S, I, IR, IH, R, hosp)
+  
   markov.df <- runMarkov(hosp, trans.mat)
   markov.df$days <- 1:num.days 
   
   df.return <- merge(df.return, markov.df, by = 'days')
+  
+  write.csv(df.return, file = 'test.csv', row.names = FALSE)
   df.return$R <- df.return$R + df.return$d
   df.return$d <- NULL
   df.return$h <- NULL
@@ -130,15 +123,15 @@ SIR <- function(S0, I0, R0, beta.vector, gamma_d, gamma_h, trans.mat, num.days) 
 
 # finds current estimates of the number of active infections, 
 # number recovered, and number 
-find.curr.estimates = function(S0, beta.vector, gamma_d, gamma_h, trans.mat,
+find.curr.estimates = function(S0, beta.vector, gamma_r, gamma_h, hosp.rate, trans.mat,
                                num.days, num.actual, start.inf = 1){
   
   # starting number of susceptible people
   start.susc <- S0 - start.inf
   start.res <- 0 
   
-  SIR.df = SIR(start.susc, start.inf, start.res, beta.vector, gamma_d, 
-               gamma_h, trans.mat, num.days)
+  SIR.df = SIR(start.susc, start.inf, start.res, beta.vector, gamma_r, gamma_h, 
+               hosp.rate, trans.mat, num.days)
 
   # find the difference between hospitalized column and the currently hospitalized number
   SIR.df$diff_proj <- abs(SIR.df$hosp - num.actual)

@@ -217,9 +217,10 @@ shinyServer(function(input, output, session) {
     
     gammas <- reactive({
         
-        findGammas(input$per.hosp, 
-                    input$hosp.delay.time, 
-                    input$illness.length)
+        list(
+            'gamma.r' = as.numeric(1 / input$illness.length), 
+            'gamma.h' = as.numeric(1 / input$hosp.delay.time)
+        )
         
     })
     
@@ -230,7 +231,7 @@ shinyServer(function(input, output, session) {
     
     initial_beta_vector <- reactive({
         
-        gamma <- as.numeric(gammas()['gamma.tot'])
+        gamma <- as.numeric(gammas()['gamma.r'])
         
         if (input$usedouble == FALSE){
             beta <- getBetaFromRe(input$r0_prior, gamma)
@@ -248,13 +249,14 @@ shinyServer(function(input, output, session) {
     curr.day.list <- reactive({
         predict.metric <- 'Hospitalization'
         num.actual <- input$num_hospitalized
-        gamma.d <- as.numeric(gammas()['gamma.d'])
+        gamma.r <- as.numeric(gammas()['gamma.r'])
         gamma.h <- as.numeric(gammas()['gamma.h'])
         
         find.curr.estimates(S0 = input$num_people,
                             beta.vector = initial_beta_vector(), 
-                            gamma_d = gamma.d, 
+                            gamma_r = gamma.r, 
                             gamma_h = gamma.h,
+                            hosp.rate = input$per.hosp,
                             trans.mat = trans.mat(),
                             num.days = est.days, 
                             num.actual = num.actual, 
@@ -412,7 +414,7 @@ shinyServer(function(input, output, session) {
     beta.vector <- reactive({
 
         int.table.temp <- intervention.table()
-        gamma <- as.numeric(gammas()['gamma.tot'])
+        gamma <- as.numeric(gammas()['gamma.r'])
         
         # determines what 'day' we are on using the initialization
         curr.day  <- as.numeric(curr.day.list()['curr.day'])
@@ -483,15 +485,16 @@ shinyServer(function(input, output, session) {
         # starting conditions
         start.susc <- input$num_people - start.inf
         start.res <- 0
-        gamma.d <- as.numeric(gammas()['gamma.d'])
+        gamma.r <- as.numeric(gammas()['gamma.r'])
         gamma.h <- as.numeric(gammas()['gamma.h'])
         
         SIR.df = SIR(S0 = start.susc,
                      I0 = start.inf, 
                      R0 = start.res, 
                      beta.vector = beta.vector(), 
-                     gamma_d = gamma.d, 
+                     gamma_r = gamma.r, 
                      gamma_h = gamma.h, 
+                     hosp.rate = input$per.hosp,
                      trans.mat = trans.mat(), 
                      num.days = new.num.days)
         
