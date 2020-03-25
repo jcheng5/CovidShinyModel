@@ -810,6 +810,7 @@ shinyServer(function(input, output, session) {
         }
     })
     
+    
     # interpretable stats 
     output$derived_stats <- renderUI({
         output.list <- getInterpretableVals(trans.list()['p.g_g'], 
@@ -829,6 +830,7 @@ shinyServer(function(input, output, session) {
              <b>Mean Hitting Time for ICU</b>: %s days<br>
              <b>Mean Hitting Time for Ventilated ICU</b>: %s days</h4>', m.g, m.icu, m.v))
     })
+    
     
     # Word description 
     output$description <- renderUI({
@@ -858,9 +860,9 @@ shinyServer(function(input, output, session) {
             
         }
         else if (input$selected_graph == 'Hospitalization'){
-            hosp <- round(select.row$hosp)
-            icu <- round(select.row$icu)
-            vent <- round(select.row$vent)
+            hosp <- round(select.row$hosp.tot)
+            icu <- round(select.row$icu.tot)
+            vent <- round(select.row$vent.tot)
             
             if (select.day == 0){
                 HTML(sprintf('<h4>On %s (Day <b>%s</b>), there are <b>%s hospitalized from COVID-19</b> in the region, 
@@ -876,9 +878,9 @@ shinyServer(function(input, output, session) {
             
         }
         else{
-            hosp_res <- input$hosp_cap - round(select.row$hosp)
-            icu_res <- input$icu_cap - round(select.row$icu)
-            vent_res <- input$vent_cap - round(select.row$vent)
+            hosp_res <- input$hosp_cap - round(select.row$hosp.tot)
+            icu_res <- input$icu_cap - round(select.row$icu.tot)
+            vent_res <- input$vent_cap - round(select.row$vent.tot)
             
             if (select.day == 0){
                 HTML(sprintf('<h4>On %s (Day <b>%s</b>), there are <b>%s hospital beds available</b> in the region, 
