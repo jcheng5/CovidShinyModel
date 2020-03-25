@@ -25,7 +25,7 @@ shinyUI(
                
                HTML('<br>'),
                
-               titlePanel("COVID-19 Epidemic Modeling"),
+               titlePanel("COVID-19 Epidemic Modeling (Version 2 - Testing)"),
                
                actionLink('howtouse', 'Learn more about this tool.'),
                
@@ -61,18 +61,11 @@ shinyUI(
                    
                    hr(),
                    
-                   HTML('<h4><b>Settings</b></h4>'),
+                   HTML('<h4><b>Parameter Selection</b></h4>'),
                    
-                   sliderInput(inputId = 'proj_num_days', 
-                               label = 'Number of Days to Project', 
-                               min = 10, 
-                               max = 730, 
-                               step = 5, 
-                               value = 365),
-                   
-                   materialSwitch(inputId = "usedouble", 
-                                  label = 'Use doubling time instead of Re', 
-                                  status = 'primary'), 
+                   sliderInput('per.hosp', '% of Infections that Result in Hospitalizations', min = 0, max = 1, value = 0.06),
+                   sliderInput('illness.length', 'Length of Illness if Not Hospitalized', min = 1, max = 20, value = 14), 
+                   sliderInput('hosp.delay.time', 'Duration from Infection to Hospitalization', min = 1, max = 20, value = 10),
                    
                    HTML('<br><h4>If 100 people are in the non-ICU hospital on a given day, how many - the next day -
                         would:</h4>'),
@@ -93,6 +86,21 @@ shinyUI(
                    numericInput('p.v_icu', 'Move to the non-ventilated ICU state?', min = 0, max = 100, value = 10),
                    numericInput('p.v_m', 'Die?', min = 0, max = 100, value = 7),
                    
+                   hr(),
+                   
+                   HTML('<h4><b>Settings</b></h4>'),
+                   
+                   sliderInput(inputId = 'proj_num_days', 
+                               label = 'Number of Days to Project', 
+                               min = 10, 
+                               max = 730, 
+                               step = 5, 
+                               value = 365),
+                   
+                   materialSwitch(inputId = "usedouble", 
+                                  label = 'Use doubling time instead of Re', 
+                                  status = 'primary'), 
+                   
                    
                    HTML('<br><br><b>Notes</b>: This app is a modified version of the <a href="http://penn-chime.phl.io/">Penn Chime app</a>.
                  This is a beta version - the projections may or may not be accurate.
@@ -109,6 +117,11 @@ shinyUI(
                    wellPanel(
                      HTML('<h3><b>Day 0 Estimates</b></h3>'),
                      htmlOutput(outputId = 'infected_ct')
+                   ),
+                   
+                   wellPanel(
+                     HTML('<h3><b>Mean Hitting Times</b></h3>'),
+                     htmlOutput(outputId = 'derived_stats')
                    ),
                    
                    wellPanel(
@@ -145,7 +158,7 @@ shinyUI(
                        dataTableOutput(outputId = 'rendered.table'),
                        style = "font-size:110%"),
                      downloadButton(outputId = 'downloadData', 
-                                    label = "Download as CSV"),
+                                    label = "Download Raw Outputs as CSV"),
                      HTML('<br><br>')
                    )
                  )

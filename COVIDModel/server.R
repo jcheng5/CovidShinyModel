@@ -126,7 +126,6 @@ shinyServer(function(input, output, session) {
                                 max = 7, 
                                 step = 0.1, 
                                 value = 2.8),
-                    actionLink('predict_re', 'Estimate Re prior to Day 0 based on data.')
                 )
             )
             
@@ -150,179 +149,6 @@ shinyServer(function(input, output, session) {
                         step = 0.1,
                         value = 2.8)
         }
-    })
-    
-    ##  ............................................................................
-    ##  Estimation of Re 
-    ##  ............................................................................
-    
-    re.estimates <- reactiveValues(
-        graph = NULL,
-        best.estimate = NULL
-    )
-    
-    observeEvent(input$predict_re, {
-        
-        showModal(
-            modalDialog(
-                useShinyjs(),
-                HTML('<h4> Estimate Re based on historical hospitalizations</h4>
-                     
-                     Provide data from dates prior to Day 0 to estimate the Re value.<br><br>'),
-                splitLayout(
-                    dateInput(inputId = 'date.hist', 
-                              label = 'Date',
-                              value = input$curr_date,
-                              max = input$curr_date,
-                              min = input$curr_date - 14),
-                    numericInput(inputId = 'num.hospitalized.hist', 
-                                 label = 'Number Hospitalized', 
-                                 value = NA)
-                ),
-                actionButton('add.hist', 'Add Data'),
-                dataTableOutput(
-                    outputId = 'input_hosp_dt'
-                ), 
-                tags$script("$(document).on('click', '#input_hosp_dt button', function () {
-                  Shiny.onInputChange('lastClickId',this.id);
-                                             Shiny.onInputChange('lastClick', Math.random())
-                                             });"),
-                HTML('<br>'),
-                actionButton(
-                    inputId = 'run.fit', 
-                    label = 'Estimate Re Prior to Day 0'),
-                div(id = "predict.ui.toggle",
-                    fluidPage(
-                        uiOutput('best.re'),
-                        plotOutput('fit.plot')
-                    )
-                ) %>% hidden()
-            )
-        )
-        
-    })
-    
-    hist.data <- reactiveVal(
-        data.frame('Date' = character(0),
-                   'Hospitalizations' = numeric(0),
-                   'Day' = numeric(0))
-    )
-    
-
-    observeEvent(input$add.hist,{
-        if (!as.character(input$date.hist) %in% as.character(hist.data()$Date) & 
-            !is.na(input$num.hospitalized.hist)){
-            new.hist <- rbind(hist.data(),
-                            list('Date' = as.character(input$date.hist), 
-                                 'Hospitalizations' = input$num.hospitalized.hist, 
-                                 'Day' = input$date.hist - input$curr_date
-                                 ))
-            
-            new.hist <- arrange(new.hist, Day)
-            new.hist$Date <- as.Date(as.character(new.hist$Date))
-            hist.data(new.hist)
-            updateDateInput(session, 
-                            inputId = 'date.hist', 
-                            value = input$date.hist - 1)
-        }
-        else if (as.character(input$date.hist) %in% as.character(hist.data()$Date))(
-            showNotification("This date has already been added.",
-                             type = "error")
-        )
-        else{
-            showNotification("Please enter the hospitalization number.",
-                             type = "error")
-        }
-    })
-    
-    output$input_hosp_dt <- renderDataTable({
-        
-        hist.dt <- hist.data()
-
-        if (nrow(hist.dt) > 0){
-            hist.dt[["Delete"]] <-
-                paste0('
-               <div class="btn-group" role="group" aria-label="Basic example">
-               <button type="button" class="btn btn-secondary delete" id=delhist', '_', hist.dt$Day, '>Delete</button>
-               </div>
-               ')
-            
-        }
-        hist.dt$Day <- NULL
-        
-        datatable(hist.dt,
-                  escape=F, selection = 'none',
-                  options = list(pageLength = 10, language = list(
-                      zeroRecords = "No historical data added.",
-                      search = 'Find in table:'), dom = 't'), rownames = FALSE)
-        
-    })
-    
-    observeEvent(input$lastClick, {
-        if (grepl('delhist', input$lastClickId)){
-            delete_day <- as.numeric(strsplit(input$lastClickId, '_')[[1]][2])
-            hist.data(hist.data()[hist.data()$Day != delete_day,])
-        }
-    })
-    
-    observeEvent(input$run.fit, {
-        
-        hist.temp <- hist.data()
-        hist.temp <- arrange(hist.temp, desc(Date))
-        
-        if (nrow(hist.temp) >= 2){
-            best.fit <- findBestRe(S0 = input$num_people, 
-                                   gamma = params$gamma, 
-                                   num.days = est.days, 
-                                   day.vec = hist.temp$Day, 
-                                   num_actual.vec = hist.temp$Hospitalizations,
-                                   start.inf = start.inf,
-                                   hosp.delay.time = params$hosp.delay.time, 
-                                   hosp.rate = params$hosp.rate, 
-                                   hosp.los = params$hosp.los,
-                                   icu.delay.time = params$icu.delay.time, 
-                                   icu.rate = params$icu.rate, 
-                                   icu.los = params$icu.los,
-                                   vent.delay.time = params$vent.delay.time, 
-                                   vent.rate = params$vent.rate, 
-                                   vent.los = params$vent.los)
-            
-            best.vals <- best.fit$best.vals
-            
-            df.graph <- data.frame(Date = hist.temp$Date, 
-                                   Predicted = best.vals,
-                                   Actual = hist.temp$Hospitalizations)
-            
-            df.melt <- melt(df.graph, id.vars = 'Date')
-            
-            re.estimates$graph <- ggplot(df.melt, aes(x = Date, y = value, col = variable)
-            ) + geom_point() + geom_line() + theme(text = element_text(size=20)) +
-                theme(legend.title=element_blank())
-            
-            re.estimates$best.estimate <- sprintf('<br><br><h4>The best estimate for Re prior to Day 0 is <b>%s</b>.', 
-                                                  best.fit$best.re)
-            
-            show("predict.ui.toggle")
-            
-        }
-        else{
-            showNotification("You need at least two timepoints of data to make a prediction.",
-                             type = "error")
-        }
-        
-    })
-    output$best.re <- renderUI({
-       HTML(re.estimates$best.estimate)
-    })
-    
-    output$fit.plot <- renderPlot({
-        re.estimates$graph
-    })
-    
-    observeEvent(input$curr_date, {
-        hist.data(data.frame('Date' = character(0),
-                   'Hospitalizations' = numeric(0),
-                   'Day' = numeric(0)))
     })
     
     ##  ............................................................................
@@ -350,21 +176,52 @@ shinyServer(function(input, output, session) {
         vent.avail = 100
     )
 
-    observeEvent(input$save, {
-        params$illness.length = input$illness.length
-        params$gamma = 1/input$illness.length
-        params$hosp.delay.time = input$hosp.after.inf
-        params$hosp.rate = input$hosp.rate
-        params$hosp.los = input$hosp.los
-        params$icu.delay.time = input$icu.after.hosp
-        params$icu.rate = input$icu.rate
-        params$icu.los = input$icu.los
-        params$vent.delay.time = input$vent.after.icu
-        params$vent.rate = input$vent.rate
-        params$vent.los = input$vent.los
-        removeModal()
+    trans.list <- reactive({
+        p.g_d <- input$p.g_d / 100
+        p.g_icu <- input$p.g_icu / 100
+        p.icu_g <- input$p.icu_g / 100
+        p.icu_v <- input$p.icu_v / 100
+        p.v_icu <- input$p.v_icu / 100
+        p.v_m <- input$p.v_m / 100
+        
+        
+        p.g_g <- 1 - p.g_d - p.g_icu
+        p.icu_icu <- 1 - p.icu_g - p.icu_v
+        p.v_v <- 1 - p.v_icu - p.v_m
+        
+        final.list <- c(
+            p.g_d = p.g_d,
+            p.g_icu = p.g_icu, 
+            p.icu_g = p.icu_g, 
+            p.icu_v = p.icu_v, 
+            p.v_icu = p.v_icu,
+            p.v_m = p.v_m, 
+            p.g_g = p.g_g,
+            p.icu_icu = p.icu_icu,
+            p.v_v = p.v_v
+        )
     })
     
+    trans.mat <- reactive({
+        
+        createTransition(p.g_g = trans.list()['p.g_g'], 
+                         p.g_icu = trans.list()['p.g_icu'], 
+                         p.g_d = trans.list()['p.g_d'], 
+                         p.icu_g = trans.list()['p.icu_g'],
+                         p.icu_icu = trans.list()['p.icu_icu'], 
+                         p.icu_v = trans.list()['p.icu_v'],
+                         p.v_icu = trans.list()['p.v_icu'], 
+                         p.v_v = trans.list()['p.v_v'], 
+                         p.v_m = trans.list()['p.v_m'])
+    })
+    
+    gammas <- reactive({
+        
+        findGammas(input$per.hosp, 
+                    input$hosp.delay.time, 
+                    input$illness.length)
+        
+    })
     
     ##  ............................................................................
     ##  Initialization 
@@ -373,45 +230,39 @@ shinyServer(function(input, output, session) {
     
     initial_beta_vector <- reactive({
         
+        gamma <- as.numeric(gammas()['gamma.tot'])
+        
         if (input$usedouble == FALSE){
-            doubling_time <- doubleTime(input$r0_prior, params$gamma)
+            beta <- getBetaFromRe(input$r0_prior, gamma)
         }
         else{
-            doubling_time <- input$doubling_time
+            beta <- getBetaFromDoubling(input$doubling_time, gamma)
         }
         
-        # calculates beta
-        beta <- getBeta(doubling_time, params$gamma, input$num_people)
-        
         initial.beta.vector <- rep(beta, est.days)
-        
         
         initial.beta.vector
     })
     
     
     curr.day.list <- reactive({
-        
         predict.metric <- 'Hospitalization'
         num.actual <- input$num_hospitalized
+        gamma.d <- as.numeric(gammas()['gamma.d'])
+        gamma.h <- as.numeric(gammas()['gamma.h'])
         
         find.curr.estimates(S0 = input$num_people,
                             beta.vector = initial_beta_vector(), 
-                            gamma = params$gamma, 
+                            gamma_d = gamma.d, 
+                            gamma_h = gamma.h,
+                            trans.mat = trans.mat(),
                             num.days = est.days, 
-                            num_actual = num.actual,
-                            metric = predict.metric,
-                            start.inf = start.inf,
-                            hosp.delay.time = params$hosp.delay.time, 
-                            hosp.rate = params$hosp.rate, 
-                            hosp.los = params$hosp.los,
-                            icu.delay.time = params$icu.delay.time, 
-                            icu.rate = params$icu.rate, 
-                            icu.los = params$icu.los,
-                            vent.delay.time = params$vent.delay.time, 
-                            vent.rate = params$vent.rate, 
-                            vent.los = params$vent.los)
+                            num.actual = num.actual, 
+                            start.inf = 1)
+        
     })
+    
+    
     
     
     ##  ............................................................................
@@ -561,6 +412,7 @@ shinyServer(function(input, output, session) {
     beta.vector <- reactive({
 
         int.table.temp <- intervention.table()
+        gamma <- as.numeric(gammas()['gamma.tot'])
         
         # determines what 'day' we are on using the initialization
         curr.day  <- as.numeric(curr.day.list()['curr.day'])
@@ -585,12 +437,6 @@ shinyServer(function(input, output, session) {
                                              New.Re = c(r0.default, NA)))
             }
             
-            applyDoubleTime <- function(x){
-                return(doubleTime(as.numeric(x['New.Re']), 
-                                  params$gamma))
-            }
-            
-            int.table.temp$New.Double.Time <- apply(int.table.temp, 1, applyDoubleTime)
         }
         else{
             int.table.temp <- rbind(int.table.temp, 
@@ -599,9 +445,14 @@ shinyServer(function(input, output, session) {
         }
         
         applygetBeta <- function(x){
-            return(getBeta(as.numeric(x['New.Double.Time']), 
-                           params$gamma, 
-                           input$num_people))
+            if (input$usedouble == FALSE){
+                return(getBetaFromRe(as.numeric(x['New.Re']), 
+                                     gamma))
+            }
+            else{
+                return(getBetaFromDoubling(as.numeric(x['New.Double.Time']), 
+                                           gamma))
+            }
         }
         
         int.table.temp$beta <- apply(int.table.temp, 1, applygetBeta)
@@ -632,28 +483,25 @@ shinyServer(function(input, output, session) {
         # starting conditions
         start.susc <- input$num_people - start.inf
         start.res <- 0
+        gamma.d <- as.numeric(gammas()['gamma.d'])
+        gamma.h <- as.numeric(gammas()['gamma.h'])
         
-        SIR.df = SIR(S0 = start.susc, 
+        SIR.df = SIR(S0 = start.susc,
                      I0 = start.inf, 
-                     R0 = start.res,
-                     beta.vector = beta.vector(),
-                     gamma = params$gamma,
-                     num.days = new.num.days, 
-                     hosp.delay.time = params$hosp.delay.time,
-                     hosp.rate = params$hosp.rate, 
-                     hosp.los = params$hosp.los,
-                     icu.delay.time = params$icu.delay.time, 
-                     icu.rate = params$icu.rate, 
-                     icu.los = params$icu.los,
-                     vent.delay.time = params$vent.delay.time, 
-                     vent.rate = params$vent.rate, 
-                     vent.los = params$vent.los)
+                     R0 = start.res, 
+                     beta.vector = beta.vector(), 
+                     gamma_d = gamma.d, 
+                     gamma_h = gamma.h, 
+                     trans.mat = trans.mat(), 
+                     num.days = new.num.days)
         
         # shift the number of days to account for day 0 in the model 
         SIR.df$days.shift <- SIR.df$day - curr.day
         
         SIR.df$date <- SIR.df$days.shift + as.Date(input$curr_date)
-        
+        SIR.df$hosp.tot <- SIR.df$hosp + SIR.df$icu + SIR.df$vent
+        SIR.df$icu.tot <- SIR.df$icu + SIR.df$vent
+        SIR.df$vent.tot <- SIR.df$vent
         SIR.df
     })
     
@@ -671,8 +519,8 @@ shinyServer(function(input, output, session) {
                     fluidPage(
                         checkboxGroupInput(inputId = 'selected_cases', 
                                            label = 'Selected', 
-                                           choices = c('Active', 'Resolved', 'Cases'), 
-                                           selected = c('Active', 'Resolved', 'Cases'), 
+                                           choices = c('Active', 'Resolved', 'Cases', 'Deaths'), 
+                                           selected = c('Active', 'Resolved', 'Cases', 'Deaths'), 
                                            inline = TRUE),
                         
                         plotOutput(outputId = 'cases.plot', 
@@ -758,9 +606,10 @@ shinyServer(function(input, output, session) {
         df_temp$Cases <- df_temp$I + df_temp$R
         df_temp$Active <- df_temp$I 
         df_temp$Resolved <- df_temp$R
+        df_temp$Deaths <- df_temp$death
         
-        df_temp <- df_temp[,c('date', 'days.shift', 'Cases', 'Active', 'Resolved')]
-        colnames(df_temp) <- c('date', 'day', 'Cases', 'Active', 'Resolved')
+        df_temp <- df_temp[,c('date', 'days.shift', 'Cases', 'Active', 'Resolved', 'Deaths')]
+        colnames(df_temp) <- c('date', 'day', 'Cases', 'Active', 'Resolved', 'Deaths')
         df_temp <- roundNonDateCols(df_temp)
         df_temp
     })
@@ -769,7 +618,7 @@ shinyServer(function(input, output, session) {
         df_temp <- sir.output.df()
         df_temp <- df_temp[df_temp$days.shift >= 0,]
         
-        df_temp <- df_temp[,c('date', 'days.shift', 'hosp', 'icu', 'vent')]
+        df_temp <- df_temp[,c('date', 'days.shift', 'hosp.tot', 'icu.tot', 'vent.tot')]
         colnames(df_temp) <- c('date', 'day', 'Hospital', 'ICU', 'Ventilator')
         df_temp <- roundNonDateCols(df_temp)
         df_temp
@@ -785,7 +634,7 @@ shinyServer(function(input, output, session) {
             df_temp$vent <- input$vent_cap - df_temp$vent
         }
         
-        df_temp <- df_temp[,c('date', 'days.shift', 'hosp', 'icu', 'vent')]
+        df_temp <- df_temp[,c('date', 'days.shift', 'hosp.tot', 'icu.tot', 'vent.tot')]
         colnames(df_temp) <- c('date', 'day', 'Hospital', 'ICU', 'Ventilator')
         df_temp <- roundNonDateCols(df_temp)
         df_temp
@@ -948,14 +797,37 @@ shinyServer(function(input, output, session) {
     
     # Estimated number of infections
     output$infected_ct <- renderUI({
-        infected <- curr.day.list()['infection.estimate']
-        cases <- as.numeric(curr.day.list()['infection.estimate']) + 
-            as.numeric(curr.day.list()['recovered.estimate'])
         
-        curr_date <- format(input$curr_date, format="%B %d, %Y")
-        
-        HTML(sprintf('<h4>On %s (Day 0), we estimate there have been <u>%s total cases</u> of COVID-19 in the region, with
+        if (length(initial_beta_vector() > 0)){
+            infected <- curr.day.list()['infection.estimate']
+            cases <- as.numeric(curr.day.list()['infection.estimate']) + 
+                as.numeric(curr.day.list()['recovered.estimate'])
+            
+            curr_date <- format(input$curr_date, format="%B %d, %Y")
+            
+            HTML(sprintf('<h4>On %s (Day 0), we estimate there have been <u>%s total cases</u> of COVID-19 in the region, with
                      <u>%s people actively infected</u>.</h4>', curr_date, cases, infected))
+        }
+    })
+    
+    # interpretable stats 
+    output$derived_stats <- renderUI({
+        output.list <- getInterpretableVals(trans.list()['p.g_g'], 
+                                            trans.list()['p.g_icu'], 
+                                            trans.list()['p.g_d'], 
+                                            trans.list()['p.icu_g'],
+                                            trans.list()['p.icu_icu'], 
+                                            trans.list()['p.icu_v'],
+                                            trans.list()['p.v_icu'], 
+                                            trans.list()['p.v_v'])
+        
+        m.g <- round(output.list['m.g'])
+        m.icu <- round(output.list['m.icu'])
+        m.v <- round(output.list['m.v'])
+        
+        HTML(sprintf('<h4><b>Mean Hitting Time for Hospitalized Non-ICU</b>: %s days<br>
+             <b>Mean Hitting Time for ICU</b>: %s days<br>
+             <b>Mean Hitting Time for Ventilated ICU</b>: %s days</h4>', m.g, m.icu, m.v))
     })
     
     # Word description 
@@ -1031,15 +903,7 @@ shinyServer(function(input, output, session) {
             paste(input$selected_graph, '-', Sys.Date(), '.csv', sep='')
         },
         content <- function(file) {
-            if (input$selected_graph == 'Cases'){
-                data <- cases.df()
-            }
-            else if (input$selected_graph == 'Hospitalization'){
-                data <- hospitalization.df()
-            }
-            else{
-                data <- resource.df()
-            }
+            data <- sir.output.df()
             write.csv(data.frame(data), file, row.names = FALSE)
         }
     )

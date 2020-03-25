@@ -180,9 +180,6 @@ SIR <- function(S0, I0, R0, beta.vector, gamma_r, gamma_h, trans.mat, num.days) 
   markov.df <- runMarkov(H, trans.mat)
   markov.df$days <- 1:num.days 
   
-  print(df.return)
-  print(markov.df)
-  
   df.return <- merge(df.return, markov.df, by = 'days')
   df.return$R <- df.return$R + df.return$d
   df.return$d <- NULL
