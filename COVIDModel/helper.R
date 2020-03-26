@@ -3,29 +3,6 @@ library(shinyWidgets)
 library(data.table)
 
 
-# solves systems to get out the interpretable 'parameters'
-# right now only gets mean hitting times
-getInterpretableVals <- function(p.g_g, 
-                                 p.g_icu, 
-                                 p.g_d, 
-                                 p.icu_g,
-                                 p.icu_icu, 
-                                 p.icu_v,
-                                 p.v_icu, 
-                                 p.v_v){
-  vec1 <- c(1 - p.g_g, -p.g_icu, 0)
-  vec2 <- c(-p.icu_g, 1 - p.icu_icu, -p.icu_v)
-  vec3 <- c(0, -p.v_icu, 1 - p.v_v)
-
-  ls <- rbind(vec1, vec2, vec3)
-  rs <- rbind(1, 1, 1)
-  
-  sol <- t(solve(ls, rs))
-  colnames(sol) <- c('m.g', 'm.icu', 'm.v')
-  
-  return(sol[1,])
-}
-
 # Transition Matrix
 createTransition <- function(p.g_g, 
                              p.g_icu, 
@@ -115,6 +92,28 @@ SIR <- function(S0, I0, R0, beta.vector, gamma_r, gamma_h,
   
 }
 
+# solves systems to get out the interpretable 'parameters'
+# right now only gets mean hitting times
+getInterpretableVals <- function(p.g_g, 
+                                 p.g_icu, 
+                                 p.g_d, 
+                                 p.icu_g,
+                                 p.icu_icu, 
+                                 p.icu_v,
+                                 p.v_icu, 
+                                 p.v_v){
+  vec1 <- c(1 - p.g_g, -p.g_icu, 0)
+  vec2 <- c(-p.icu_g, 1 - p.icu_icu, -p.icu_v)
+  vec3 <- c(0, -p.v_icu, 1 - p.v_v)
+  
+  ls <- rbind(vec1, vec2, vec3)
+  rs <- rbind(1, 1, 1)
+  
+  sol <- t(solve(ls, rs))
+  colnames(sol) <- c('m.g', 'm.icu', 'm.v')
+  
+  return(sol[1,])
+}
 
 # finds current estimates of the number of active infections, 
 # number recovered, and number 
