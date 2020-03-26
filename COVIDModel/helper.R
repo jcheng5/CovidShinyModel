@@ -44,7 +44,7 @@ runMarkov <- function(new.g.vec, trans.mat){
 }
 
 # Runs SIR, combines with Markov
-SIR <- function(S0, I0, R0, beta.vector, gamma_r, gamma_h, 
+SIR <- function(S0, I0, R0, beta.vector, gamma.r, gamma.h, 
                 hosp.rate, trans.mat, num.days) {
   
   # non-hospitalized rate
@@ -64,15 +64,15 @@ SIR <- function(S0, I0, R0, beta.vector, gamma_r, gamma_h,
   for (tt in 1:(num.days - 1)) {
     beta <- beta.vector[tt]
     dS <- (-beta * S[tt] * (IR[tt] + IH[tt]))/N
-    dR <- gamma_r * IR[tt]
+    dR <- gamma.r * IR[tt]
     dIR <- -(dS * non.hosp.rate) - dR
-    dIH <- -(dS * hosp.rate) - (gamma_h * IH[tt])
+    dIH <- -(dS * hosp.rate) - (gamma.h * IH[tt])
 
     S[tt + 1] <-  S[tt] + dS
     IR[tt + 1] <- IR[tt] + dIR
     IH[tt + 1] <- IH[tt] + dIH
     R[tt + 1] <- R[tt] + dR
-    newG[tt + 1] <- gamma_h * IH[tt]
+    newG[tt + 1] <- gamma.h * IH[tt]
   }
   
   I <- IR + IH
@@ -117,14 +117,14 @@ getInterpretableVals <- function(p.g_g,
 
 # finds current estimates of the number of active infections, 
 # number recovered, and number 
-find.curr.estimates = function(S0, beta.vector, gamma_r, gamma_h, hosp.rate, trans.mat,
+find.curr.estimates = function(S0, beta.vector, gamma.r, gamma.h, hosp.rate, trans.mat,
                                num.days, num.actual, start.inf = 1){
   
   # starting number of susceptible people
   start.susc <- S0 - start.inf
   start.res <- 0 
   
-  SIR.df = SIR(start.susc, start.inf, start.res, beta.vector, gamma_r, gamma_h, 
+  SIR.df = SIR(start.susc, start.inf, start.res, beta.vector, gamma.r, gamma.h, 
                hosp.rate, trans.mat, num.days)
 
   # find the difference between hospitalized column and the currently hospitalized number

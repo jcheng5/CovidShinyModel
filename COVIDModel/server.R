@@ -166,17 +166,6 @@ shinyServer(function(input, output, session) {
     
     # initializing a set of parameters  
     params <- reactiveValues(
-        illness.length = 14,
-        gamma = 1/14,
-        hosp.delay.time = 10, 
-        hosp.rate = 0.06, 
-        hosp.los = 11,
-        icu.delay.time = 5, 
-        icu.rate = 0.3, 
-        icu.los = 8, 
-        vent.delay.time = 1, 
-        vent.rate = 0.64, 
-        vent.los = 10,
         int.new.r0 = 2.8, 
         int.new.double = 6,
         int.new.num.days = 0, 
@@ -210,7 +199,6 @@ shinyServer(function(input, output, session) {
             p.g_g = p.g_g,
             p.icu_icu = p.icu_icu,
             p.v_v = p.v_v
-            
         )
     })
     
@@ -237,13 +225,7 @@ shinyServer(function(input, output, session) {
         
     })
     
-    ##  ............................................................................
-    ##  Initialization 
-    ##  ............................................................................
-    
-    
-    initial_beta_vector <- reactive({
-        
+    initial.beta <- reactive({
         gamma <- as.numeric(gammas()['gamma.r'])
         
         if (input$usedouble == FALSE){
@@ -253,7 +235,17 @@ shinyServer(function(input, output, session) {
             beta <- getBetaFromDoubling(input$doubling_time, gamma)
         }
         
-        initial.beta.vector <- rep(beta, est.days)
+        beta
+    })
+    
+    ##  ............................................................................
+    ##  Initialization 
+    ##  ............................................................................
+    
+    
+    initial_beta_vector <- reactive({
+        
+        initial.beta.vector <- rep(initial.beta(), est.days)
         
         initial.beta.vector
         
@@ -269,8 +261,8 @@ shinyServer(function(input, output, session) {
         
         find.curr.estimates(S0 = input$num_people,
                             beta.vector = initial_beta_vector(), 
-                            gamma_r = gamma.r, 
-                            gamma_h = gamma.h,
+                            gamma.r = gamma.r, 
+                            gamma.h = gamma.h,
                             hosp.rate = input$per.hosp,
                             trans.mat = trans.mat(),
                             num.days = est.days, 
@@ -542,8 +534,8 @@ shinyServer(function(input, output, session) {
                      I0 = start.inf, 
                      R0 = start.res, 
                      beta.vector = beta.vector(), 
-                     gamma_r = gamma.r, 
-                     gamma_h = gamma.h, 
+                     gamma.r = gamma.r, 
+                     gamma.h = gamma.h, 
                      hosp.rate = input$per.hosp,
                      trans.mat = trans.mat(), 
                      num.days = new.num.days)
@@ -987,7 +979,7 @@ shinyServer(function(input, output, session) {
     ##  ............................................................................
     output$downloadData <- downloadHandler(
         filename <- function() {
-            paste(input$selected_graph, '-', Sys.Date(), '.csv', sep='')
+            paste('Model 2 Testing', '-', Sys.Date(), '.csv', sep='')
         },
         content <- function(file) {
             data <- sir.output.df()[,c('days', 'days.shift', 'date', 'S', 'IR', 'IH', 'R', 
@@ -996,5 +988,32 @@ shinyServer(function(input, output, session) {
             write.csv(data.frame(data), file, row.names = FALSE)
         }
     )
+    
+    ##  ............................................................................
+    ##  Download Parameters   
+    ##  ............................................................................
+    
+    output$downloadParams <- downloadHandler(
+        filename <- function() {
+            paste('Model2-Params', '-', Sys.Date(), '.csv', sep='')
+        },
+        content <- function(file) {
+            I0 <- start.inf
+            S0 <- input$num_people - I0
+            R0 <- 0
+            
+            df.params <- data.frame(names = c('S0', 'I0', 'R0', 'beta', 'gamma.r', 'gamma.h', 'hosp.rate', 
+                                              'p.g_d', 'p.g_g', 'p.g_icu', 'p.icu_g',
+                                              'p.icu_icu', 'p.icu_v', 'p.v_icu', 'p.v_v', 'p.v_m'),
+                                    vals = c(S0, I0, R0, initial.beta(), gammas()$gamma.r, gammas()$gamma.h, input$per.hosp, 
+                                             trans.list()['p.g_d'], trans.list()['p.g_g'], trans.list()['p.g_icu'], trans.list()['p.icu_g'], 
+                                             trans.list()['p.icu_icu'], trans.list()['p.icu_v'], trans.list()['p.v_icu'], trans.list()['p.v_v'], trans.list()['p.v_m'])
+            )
+            
+            write.csv(df.params, file, row.names = FALSE)
+            
+        }
+)
+
 }
 )

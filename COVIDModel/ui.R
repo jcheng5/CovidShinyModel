@@ -25,7 +25,7 @@ shinyUI(
                
                HTML('<br>'),
                
-               titlePanel("COVID-19 Epidemic Modeling (Version 2 - Markov)"),
+               titlePanel("COVID-19 Epidemic Modeling (Version 2 Testing - Markov)"),
                
                actionLink('howtouse', 'Learn more about this tool.'),
                
@@ -157,8 +157,11 @@ shinyUI(
                      div(
                        dataTableOutput(outputId = 'rendered.table'),
                        style = "font-size:110%"),
+                     HTML('<br>'),
                      downloadButton(outputId = 'downloadData', 
                                     label = "Download Raw Outputs as CSV"),
+                     downloadButton(outputId = 'downloadParams', 
+                                    label = "Download Parameters"),
                      HTML('<br><br>')
                    )
                  )
