@@ -24,6 +24,7 @@ shinyServer(function(input, output, session) {
     
     # modal pop-up helper screen
     observeEvent(input$howtouse,{
+        
         showModal(modalDialog(
             fluidPage(
                 HTML("<h4><b>What does this tool do?</b></h4>
@@ -91,17 +92,23 @@ shinyServer(function(input, output, session) {
             size = 'l'
         )
         )
+        
     })
     
     ##  ............................................................................
-    ##  Prediction Field (Currently Only Hospitalizations) 
+    ##  Prediction Field (Currently Only Predicts From Hospitalizations) 
     ##  ............................................................................
     
     output$prediction_fld <- renderUI({
         
-        numericInput(inputId = 'num_hospitalized', 
+        numericInput(inputId = 'num.hospitalized', 
                      label = 'Estimate of current inpatients with COVID-19 (diagnosed or not) on Day 0', 
                      value = 50)
+        
+    })
+    
+    observeEvent(input$num.hospitalized, {
+        params$num.hospitalized <- input$num.hospitalized
     })
     
     ##  ............................................................................
@@ -110,12 +117,14 @@ shinyServer(function(input, output, session) {
     
     output$prior_val <- renderUI({
         if (input$usedouble == TRUE){
+            
             sliderInput(inputId = 'doubling_time', 
                         label = 'Doubling Time (days) Before Day 0', 
                         min = 1, 
                         max = 12, 
                         step = 1, 
                         value = 6)
+            
         }
         else{
             fluidPage(
@@ -125,7 +134,7 @@ shinyServer(function(input, output, session) {
                                 min = 0.1, 
                                 max = 7, 
                                 step = 0.1, 
-                                value = 2.8),
+                                value = 2.8)
                 )
             )
             
@@ -173,10 +182,12 @@ shinyServer(function(input, output, session) {
         int.new.num.days = 0, 
         hosp.avail = 1000, 
         icu.avail = 200, 
-        vent.avail = 100
+        vent.avail = 100,
+        num.hospitalized = 50
     )
-
+    
     trans.list <- reactive({
+        
         p.g_d <- input$p.g_d / 100
         p.g_icu <- input$p.g_icu / 100
         p.icu_g <- input$p.icu_g / 100
@@ -199,6 +210,7 @@ shinyServer(function(input, output, session) {
             p.g_g = p.g_g,
             p.icu_icu = p.icu_icu,
             p.v_v = p.v_v
+            
         )
     })
     
@@ -213,6 +225,7 @@ shinyServer(function(input, output, session) {
                          p.v_icu = trans.list()['p.v_icu'], 
                          p.v_v = trans.list()['p.v_v'], 
                          p.v_m = trans.list()['p.v_m'])
+        
     })
     
     gammas <- reactive({
@@ -243,12 +256,14 @@ shinyServer(function(input, output, session) {
         initial.beta.vector <- rep(beta, est.days)
         
         initial.beta.vector
+        
     })
     
     
     curr.day.list <- reactive({
+        
         predict.metric <- 'Hospitalization'
-        num.actual <- input$num_hospitalized
+        num.actual <- params$num.hospitalized
         gamma.r <- as.numeric(gammas()['gamma.r'])
         gamma.h <- as.numeric(gammas()['gamma.h'])
         
@@ -275,6 +290,7 @@ shinyServer(function(input, output, session) {
     output$intervention_ui <- renderUI({ 
         
         if (input$showint){
+            
             fluidPage(
                 fluidRow(uiOutput(outputId = 'int_val'),
                          
@@ -288,6 +304,7 @@ shinyServer(function(input, output, session) {
                          actionButton(inputId = 'add_intervention', 
                                       label = 'Save Intervention'))
             )
+            
         }
         
     })
@@ -300,21 +317,29 @@ shinyServer(function(input, output, session) {
         params$int.new.num.days <- 0
         
     })
-
+    
     
     observeEvent(input$doubling_time,{
+        
         if(input$showint == FALSE){
+            
             params$int.new.double <- input$doubling_time
+            
         }
+        
     })
-
+    
     
     observeEvent(input$r0_prior,{
+        
         if(input$showint == FALSE){
+            
             params$int.new.r0 <- input$r0_prior
+            
         }
+        
     })
-
+    
     
     observeEvent(input$new_double, {
         
@@ -341,41 +366,55 @@ shinyServer(function(input, output, session) {
     )
     
     observeEvent(input$usedouble, {
+        
         if (input$usedouble == TRUE){
+            
             intervention.table(
                 data.frame('Day' = numeric(0),
                            'New Double Time' = numeric(0))
+                
             )
         }
         else{
+            
             intervention.table(
                 data.frame('Day' = numeric(0),
                            'New Re' = numeric(0))
             )
+            
         }
+        
     })
     
     observeEvent(input$add_intervention,{
         
         if (!params$int.new.num.days %in% intervention.table()$Day){
+            
             if (input$usedouble == TRUE){
+                
                 intervention.table(rbind(intervention.table(),
                                          list('Day' = params$int.new.num.days , 
                                               'New.Double.Time' = params$int.new.double 
                                          )))
+                
             }
             else{
+                
                 intervention.table(rbind(intervention.table(),
                                          list('Day' = params$int.new.num.days, 
                                               'New.Re' = params$int.new.r0 
                                          )))
+                
             }
-        
-        intervention.table(arrange(intervention.table(), Day))
+            
+            intervention.table(arrange(intervention.table(), Day))
+            
         }
         
         else{
+            
             showNotification('You have already added an intervention on this date', type = 'error')
+            
         }
     })
     
@@ -384,6 +423,7 @@ shinyServer(function(input, output, session) {
         int.df <- intervention.table()
         
         if (nrow(int.df) > 0){
+            
             int.df[["Delete"]] <-
                 paste0('
                <div class="btn-group" role="group" aria-label="Basic example">
@@ -402,17 +442,22 @@ shinyServer(function(input, output, session) {
     })
     
     observeEvent(input$lastClick, {
+        
         if (grepl('delete', input$lastClickId)){
+            
             delete_day <- as.numeric(strsplit(input$lastClickId, '_')[[1]][2])
             intervention.table(intervention.table()[intervention.table()$Day != delete_day,])
+            
         }
+        
     })
+    
     ##  ............................................................................
     ##  Projection 
     ##  ............................................................................
     
     beta.vector <- reactive({
-
+        
         int.table.temp <- intervention.table()
         gamma <- as.numeric(gammas()['gamma.r'])
         
@@ -420,9 +465,11 @@ shinyServer(function(input, output, session) {
         curr.day  <- as.numeric(curr.day.list()['curr.day'])
         
         if (is.na(curr.day)){
+            
             # TODO: replace hacky fix to bug with non-hacky fix
             curr.day = 365
             new.num.days = 1000
+            
         }
         
         # setting doubling time
@@ -447,6 +494,7 @@ shinyServer(function(input, output, session) {
         }
         
         applygetBeta <- function(x){
+            
             if (input$usedouble == FALSE){
                 return(getBetaFromRe(as.numeric(x['New.Re']), 
                                      gamma))
@@ -455,6 +503,7 @@ shinyServer(function(input, output, session) {
                 return(getBetaFromDoubling(as.numeric(x['New.Double.Time']), 
                                            gamma))
             }
+            
         }
         
         int.table.temp$beta <- apply(int.table.temp, 1, applygetBeta)
@@ -472,6 +521,7 @@ shinyServer(function(input, output, session) {
             beta.vec <- c(beta.vec, rep(beta, reps))
         }
         beta.vec
+        
     })
     
     
@@ -501,11 +551,18 @@ shinyServer(function(input, output, session) {
         # shift the number of days to account for day 0 in the model 
         SIR.df$days.shift <- SIR.df$day - curr.day
         
+        # hacky fix for discrepency between hospitalized in app 
+        # and that in model
+        # TODO: fix it...
+        SIR.df[SIR.df$days.shift == 0,]$g <- params$num.hospitalized - 
+            SIR.df[SIR.df$days.shift == 0,]$icu - SIR.df[SIR.df$days.shift == 0,]$vent
+        
         SIR.df$date <- SIR.df$days.shift + as.Date(input$curr_date)
-        SIR.df$hosp.tot <- SIR.df$hosp + SIR.df$icu + SIR.df$vent
+        SIR.df$hosp.tot <- SIR.df$g + SIR.df$icu + SIR.df$vent
         SIR.df$icu.tot <- SIR.df$icu + SIR.df$vent
         SIR.df$vent.tot <- SIR.df$vent
         SIR.df
+        
     })
     
     
@@ -516,73 +573,77 @@ shinyServer(function(input, output, session) {
     # UI depends on what graph is selected
     output$plot_output <- renderUI({
         
-        if (!is.null(input$num_hospitalized)){
-            if (!is.na(input$num_hospitalized)){
-                if (input$selected_graph == 'Cases'){
-                    fluidPage(
-                        checkboxGroupInput(inputId = 'selected_cases', 
-                                           label = 'Selected', 
-                                           choices = c('Active', 'Resolved', 'Cases', 'Deaths'), 
-                                           selected = c('Active', 'Resolved', 'Cases', 'Deaths'), 
-                                           inline = TRUE),
-                        
-                        plotOutput(outputId = 'cases.plot', 
-                                   click = "plot_click")
-                    )
-                }
-                else if (input$selected_graph == 'Hospitalization'){
-                    fluidPage(
-                        checkboxGroupInput(inputId = 'selected_hosp', 
-                                           label = 'Selected', 
-                                           choices = c('Hospital', 'ICU', 'Ventilator'), 
-                                           selected =  c('Hospital', 'ICU', 'Ventilator'), 
-                                           inline = TRUE),
-                        
-                        plotOutput(outputId = 'hospitalization.plot', 
-                                   click = "plot_click")
-                    )
-                }
-                else{
-                    fluidPage(
-                        column(4,
-                               numericInput(inputId = 'hosp_cap', 
-                                            label = 'Hospital Bed Availability', 
-                                            value = params$hosp.avail)),
-                        
-                        column(4,
-                               numericInput(inputId = 'icu_cap', 
-                                            label = 'ICU Space Availability', 
-                                            value = params$icu.avail)),
-                        
-                        column(4,
-                               numericInput(inputId = 'vent_cap', 
-                                            label = 'Ventilator Availability', 
-                                            value = params$vent.avail)),
-                        
-                        fluidPage(checkboxGroupInput(inputId = 'selected_res', 
-                                                     label = 'Selected', 
-                                                     choices = c('Hospital', 'ICU', 'Ventilator'), 
-                                                     selected =  c('Hospital', 'ICU', 'Ventilator'), 
-                                                     inline = TRUE)),
-                        
-                        plotOutput(outputId = 'resource.plot', 
-                                   click = "plot_click")
-                    )
-                }
-            }
+        
+        if (input$selected_graph == 'Cases'){
+            fluidPage(
+                checkboxGroupInput(inputId = 'selected_cases', 
+                                   label = 'Selected', 
+                                   choices = c('Active', 'Resolved', 'Cases', 'Deaths'), 
+                                   selected = c('Active', 'Resolved', 'Cases', 'Deaths'), 
+                                   inline = TRUE),
+                
+                plotOutput(outputId = 'cases.plot', 
+                           click = "plot_click")
+            )
+        }
+        else if (input$selected_graph == 'Hospitalization'){
+            fluidPage(
+                checkboxGroupInput(inputId = 'selected_hosp', 
+                                   label = 'Selected', 
+                                   choices = c('Hospital', 'ICU', 'Ventilator'), 
+                                   selected =  c('Hospital', 'ICU', 'Ventilator'), 
+                                   inline = TRUE),
+                
+                plotOutput(outputId = 'hospitalization.plot', 
+                           click = "plot_click")
+            )
+        }
+        else{
+            fluidPage(
+                column(4,
+                       numericInput(inputId = 'hosp_cap', 
+                                    label = 'Hospital Bed Availability', 
+                                    value = params$hosp.avail)),
+                
+                column(4,
+                       numericInput(inputId = 'icu_cap', 
+                                    label = 'ICU Space Availability', 
+                                    value = params$icu.avail)),
+                
+                column(4,
+                       numericInput(inputId = 'vent_cap', 
+                                    label = 'Ventilator Availability', 
+                                    value = params$vent.avail)),
+                
+                fluidPage(checkboxGroupInput(inputId = 'selected_res', 
+                                             label = 'Selected', 
+                                             choices = c('Hospital', 'ICU', 'Ventilator'), 
+                                             selected =  c('Hospital', 'ICU', 'Ventilator'), 
+                                             inline = TRUE)),
+                
+                plotOutput(outputId = 'resource.plot', 
+                           click = "plot_click")
+            )
+            
         }
     })
     
     observeEvent(input$hosp_cap, {
+        
         params$hosp.avail <- input$hosp_cap
+        
     })
     
     observeEvent(input$icu_cap, {
+        
         params$icu.avail <- input$icu_cap
+        
     })
     
     observeEvent(input$vent_cap, {
+        
         params$vent.avail <- input$vent_cap
+        
     })
     
     
@@ -600,9 +661,11 @@ shinyServer(function(input, output, session) {
             }
         }
         return(df.new)
+        
     }
     
     cases.df <- reactive({
+        
         df_temp <- sir.output.df()
         df_temp <- df_temp[df_temp$days.shift >= 0,]
         
@@ -615,9 +678,11 @@ shinyServer(function(input, output, session) {
         colnames(df_temp) <- c('date', 'day', 'Cases', 'Active', 'Resolved', 'Deaths')
         df_temp <- roundNonDateCols(df_temp)
         df_temp
+        
     })
     
     hospitalization.df <- reactive({
+        
         df_temp <- sir.output.df()
         df_temp <- df_temp[df_temp$days.shift >= 0,]
         
@@ -625,9 +690,11 @@ shinyServer(function(input, output, session) {
         colnames(df_temp) <- c('date', 'day', 'Hospital', 'ICU', 'Ventilator')
         df_temp <- roundNonDateCols(df_temp)
         df_temp
+        
     })
     
     resource.df <- reactive({
+        
         df_temp <- sir.output.df()
         df_temp <- df_temp[df_temp$days.shift >= 0,]
         
@@ -641,6 +708,7 @@ shinyServer(function(input, output, session) {
         colnames(df_temp) <- c('date', 'day', 'Hospital', 'ICU', 'Ventilator')
         df_temp <- roundNonDateCols(df_temp)
         df_temp
+        
     })
     
     ##  ............................................................................
@@ -648,6 +716,7 @@ shinyServer(function(input, output, session) {
     ##  ............................................................................
     
     output$rendered.table <- renderDataTable({
+        
         if (input$selected_graph == 'Cases'){
             df.render <- cases.df()
         }
@@ -669,6 +738,7 @@ shinyServer(function(input, output, session) {
     })
     
     observeEvent(input$rendered.table_row_last_clicked,{
+        
         row.id <- input$rendered.table_row_last_clicked
         
         if (input$selected_graph == 'Cases'){
@@ -697,6 +767,7 @@ shinyServer(function(input, output, session) {
     })
     
     observeEvent(input$plot_click, {
+        
         plot_day(as.Date(round(input$plot_click$x), origin = "1970-01-01"))
         
         proxy <- dataTableProxy(
@@ -711,6 +782,7 @@ shinyServer(function(input, output, session) {
     })
     
     observeEvent(input$goright, {
+        
         if (plot_day() != input$curr_date + input$proj_num_days){
             plot_day(plot_day() + 1)
             
@@ -727,6 +799,7 @@ shinyServer(function(input, output, session) {
     })
     
     observeEvent(input$goleft, {
+        
         if (plot_day() != input$curr_date){
             plot_day(plot_day() - 1)
             
@@ -744,6 +817,7 @@ shinyServer(function(input, output, session) {
     
     
     output$hospitalization.plot <- renderPlot({
+        
         df.to.plot <- hospitalization.df()
         
         df.to.plot$day <- NULL
@@ -759,10 +833,12 @@ shinyServer(function(input, output, session) {
             ) +  geom_vline(xintercept=input$curr_date) + theme(text = element_text(size=20)
             ) +  geom_vline(xintercept=plot_day(), color = 'red') + ylab('')
         }
+        
     })
     
     
     output$resource.plot <- renderPlot({
+        
         df.to.plot <- resource.df()
         df.to.plot$day <- NULL
         
@@ -776,9 +852,11 @@ shinyServer(function(input, output, session) {
             ) +  geom_vline(xintercept=input$curr_date) + theme(text = element_text(size=20)
             ) +  geom_vline(xintercept=plot_day(), color = 'red') + geom_hline(yintercept = 0) + ylab('') 
         }
+        
     })
     
     output$cases.plot <- renderPlot({
+        
         df.to.plot <- cases.df()
         df.to.plot$day <- NULL
         
@@ -791,6 +869,7 @@ shinyServer(function(input, output, session) {
             ) + geom_line() +  geom_vline(xintercept=input$curr_date) + theme(text = element_text(size=20)
             ) +  geom_vline(xintercept=plot_day(), color = 'red') + ylab('')
         }
+        
     })
     
     
@@ -811,11 +890,13 @@ shinyServer(function(input, output, session) {
             HTML(sprintf('<h4>On %s (Day 0), we estimate there have been <u>%s total cases</u> of COVID-19 in the region, with
                      <u>%s people actively infected</u>.</h4>', curr_date, cases, infected))
         }
+        
     })
     
     
     # interpretable stats 
     output$derived_stats <- renderUI({
+        
         output.list <- getInterpretableVals(trans.list()['p.g_g'], 
                                             trans.list()['p.g_icu'], 
                                             trans.list()['p.g_d'], 
@@ -832,6 +913,7 @@ shinyServer(function(input, output, session) {
         HTML(sprintf('<h4><b>Mean Hitting Time for Hospitalized Non-ICU</b>: %s days<br>
              <b>Mean Hitting Time for ICU</b>: %s days<br>
              <b>Mean Hitting Time for Ventilated ICU</b>: %s days</h4>', m.g, m.icu, m.v))
+        
     })
     
     
@@ -908,7 +990,9 @@ shinyServer(function(input, output, session) {
             paste(input$selected_graph, '-', Sys.Date(), '.csv', sep='')
         },
         content <- function(file) {
-            data <- sir.output.df()
+            data <- sir.output.df()[,c('days', 'days.shift', 'date', 'S', 'IR', 'IH', 'R', 
+                                       'g', 'icu', 'vent', 'disc', 'death', 'hosp.tot', 
+                                       'icu.tot', 'vent.tot')]
             write.csv(data.frame(data), file, row.names = FALSE)
         }
     )
