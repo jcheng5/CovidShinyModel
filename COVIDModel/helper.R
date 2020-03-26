@@ -65,7 +65,7 @@ runMarkov <- function(new.hosp.vec, trans.mat){
     df.final <- rbind(df.final, step.vec)
   }
   
-  colnames(df.final) <- c('h', 'icu', 'vent', 'd', 'death')
+  colnames(df.final) <- c('hosp', 'icu', 'vent', 'd', 'death')
   return(df.final)
 }
 
@@ -77,12 +77,12 @@ SIR <- function(S0, I0, R0, beta.vector, gamma_r, gamma_h,
   non.hosp.rate <- 1 - hosp.rate
   
   # initialize S, I, R 
-  S <- IH <- IR <- R <- hosp <- rep(NA_real_, num.days)
+  S <- IH <- IR <- R <- newhosp <- rep(NA_real_, num.days)
   S[1] <- S0
   IR[1] <- I0 * non.hosp.rate
   IH[1] <- I0 * hosp.rate
   R[1] <- R0
-  hosp[1] <- 0
+  newhosp[1] <- 0
   
   N = S[1] + IR[1] + IH[1] + R[1]
 
@@ -91,22 +91,21 @@ SIR <- function(S0, I0, R0, beta.vector, gamma_r, gamma_h,
     beta <- beta.vector[tt]
     dS <- (-beta * S[tt] * (IR[tt] + IH[tt]))/N
     dR <- gamma_r * IR[tt]
-    dHosp <- gamma_h * IH[tt]
     dIR <- -(dS * non.hosp.rate) - dR
-    dIH <- -(dS * hosp.rate) - dHosp
+    dIH <- -(dS * hosp.rate) - (gamma_h * IH[tt])
 
     S[tt + 1] <-  S[tt] + dS
     IR[tt + 1] <- IR[tt] + dIR
     IH[tt + 1] <- IH[tt] + dIH
     R[tt + 1] <- R[tt] + dR
-    hosp[tt + 1] <- hosp[tt] + dHosp
+    newhosp[tt + 1] <- gamma_h * IH[tt]
   }
   
   I <- IR + IH
   
-  df.return <- data.frame(days = 1:num.days, S, I, IR, IH, R, hosp)
+  df.return <- data.frame(days = 1:num.days, S, I, IR, IH, R, newhosp)
   
-  markov.df <- runMarkov(hosp, trans.mat)
+  markov.df <- runMarkov(newhosp, trans.mat)
   markov.df$days <- 1:num.days 
   
   df.return <- merge(df.return, markov.df, by = 'days')
@@ -114,8 +113,7 @@ SIR <- function(S0, I0, R0, beta.vector, gamma_r, gamma_h,
   write.csv(df.return, file = 'test.csv', row.names = FALSE)
   df.return$R <- df.return$R + df.return$d
   df.return$d <- NULL
-  df.return$h <- NULL
-  
+
   return(df.return)
   
 }
